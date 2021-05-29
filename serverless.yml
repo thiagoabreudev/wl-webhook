@@ -1,0 +1,49 @@
+service: webhook-producer
+
+frameworkVersion: '2'
+
+plugins:
+  - serverless-add-api-key
+custom:
+  apiKeys:
+    - name: token
+
+
+provider:
+  name: aws
+  runtime: nodejs12.x
+  lambdaHashingVersion: 20201221
+  region: sa-east-1
+  memorySize: 256
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        # - sqs:ReceiveMessage
+        # - sqs:DeleteMessage
+        # - sqs:GetQueueAttributes
+        - sqs:*
+      Resource:
+        - ${env:SQS_ARN}
+
+
+functions:
+  webhook-producer:
+    handler: webhookProducer.handle
+    events:
+      - http:
+          path: webhooks/{proxy+}
+          method: post
+          cors: true
+
+    environment:
+      QUEUE_URL: ${env.SQS_URL}
+      AWS_KEY: ${env:AWS_KEY}
+      AWS_SECRET: ${env:AWS_SECRET}
+
+  webhook-consumer:
+    handler: webhookConsumer.handle
+    events:
+      - sqs:
+          arn: ${env:SQS_ARN}
+    environment:
+      URL: ${env:WL_DESTINATION_URL}
